@@ -1,0 +1,331 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: elektraweb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - elektraweb-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: elektraweb-redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - elektraweb-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: elektraweb-api-gateway
+    restart: unless-stopped
+    ports:
+      - "${API_GATEWAY_PORT}:${API_GATEWAY_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${API_GATEWAY_PORT}
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+      - HOTEL_SERVICE_URL=${HOTEL_SERVICE_URL}
+      - RESERVATION_SERVICE_URL=${RESERVATION_SERVICE_URL}
+      - FOLIO_SERVICE_URL=${FOLIO_SERVICE_URL}
+      - INTEGRATION_SERVICE_URL=${INTEGRATION_SERVICE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    depends_on:
+      - redis
+      - auth-service
+      - hotel-service
+      - reservation-service
+      - folio-service
+      - integration-service
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/api-gateway:/app
+      - /app/node_modules
+
+  # Auth Service
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: elektraweb-auth-service
+    restart: unless-stopped
+    ports:
+      - "${AUTH_SERVICE_PORT}:${AUTH_SERVICE_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${AUTH_SERVICE_PORT}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION=${JWT_EXPIRATION}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_REFRESH_EXPIRATION=${JWT_REFRESH_EXPIRATION}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/auth-service:/app
+      - /app/node_modules
+
+  # Hotel Service
+  hotel-service:
+    build:
+      context: ./services/hotel-service
+      dockerfile: Dockerfile
+    container_name: elektraweb-hotel-service
+    restart: unless-stopped
+    ports:
+      - "${HOTEL_SERVICE_PORT}:${HOTEL_SERVICE_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${HOTEL_SERVICE_PORT}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/hotel-service:/app
+      - /app/node_modules
+
+  # Reservation Service
+  reservation-service:
+    build:
+      context: ./services/reservation-service
+      dockerfile: Dockerfile
+    container_name: elektraweb-reservation-service
+    restart: unless-stopped
+    ports:
+      - "${RESERVATION_SERVICE_PORT}:${RESERVATION_SERVICE_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${RESERVATION_SERVICE_PORT}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - HOTEL_SERVICE_URL=${HOTEL_SERVICE_URL}
+    depends_on:
+      - postgres
+      - redis
+      - hotel-service
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/reservation-service:/app
+      - /app/node_modules
+
+  # Folio Service
+  folio-service:
+    build:
+      context: ./services/folio-service
+      dockerfile: Dockerfile
+    container_name: elektraweb-folio-service
+    restart: unless-stopped
+    ports:
+      - "${FOLIO_SERVICE_PORT}:${FOLIO_SERVICE_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${FOLIO_SERVICE_PORT}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - RESERVATION_SERVICE_URL=${RESERVATION_SERVICE_URL}
+    depends_on:
+      - postgres
+      - redis
+      - reservation-service
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/folio-service:/app
+      - /app/node_modules
+
+  # Integration Service
+  integration-service:
+    build:
+      context: ./services/integration-service
+      dockerfile: Dockerfile
+    container_name: elektraweb-integration-service
+    restart: unless-stopped
+    ports:
+      - "${INTEGRATION_SERVICE_PORT}:${INTEGRATION_SERVICE_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${INTEGRATION_SERVICE_PORT}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/integration-service:/app
+      - /app/node_modules
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: elektraweb-notification-service
+    restart: unless-stopped
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT}:${NOTIFICATION_SERVICE_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${NOTIFICATION_SERVICE_PORT}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM}
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/notification-service:/app
+      - /app/node_modules
+
+  # Reports Service
+  reports-service:
+    build:
+      context: ./services/reports-service
+      dockerfile: Dockerfile
+    container_name: elektraweb-reports-service
+    restart: unless-stopped
+    ports:
+      - "${REPORTS_SERVICE_PORT}:${REPORTS_SERVICE_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${REPORTS_SERVICE_PORT}
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/reports-service:/app
+      - /app/node_modules
+
+  # WebSocket Gateway
+  websocket-gateway:
+    build:
+      context: ./services/websocket-gateway
+      dockerfile: Dockerfile
+    container_name: elektraweb-websocket-gateway
+    restart: unless-stopped
+    ports:
+      - "${WEBSOCKET_PORT}:${WEBSOCKET_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${WEBSOCKET_PORT}
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/websocket-gateway:/app
+      - /app/node_modules
+
+  # Payment Service
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: elektraweb-payment-service
+    restart: unless-stopped
+    ports:
+      - "${PAYMENT_SERVICE_PORT}:${PAYMENT_SERVICE_PORT}"
+    environment:
+      - NODE_ENV=${NODE_ENV}
+      - PORT=${PAYMENT_SERVICE_PORT}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+      - IYZICO_API_KEY=${IYZICO_API_KEY}
+      - IYZICO_SECRET_KEY=${IYZICO_SECRET_KEY}
+      - IYZICO_BASE_URL=${IYZICO_BASE_URL}
+      - PAYTR_MERCHANT_ID=${PAYTR_MERCHANT_ID}
+      - PAYTR_MERCHANT_KEY=${PAYTR_MERCHANT_KEY}
+      - PAYTR_MERCHANT_SALT=${PAYTR_MERCHANT_SALT}
+      - PAYTR_BASE_URL=${PAYTR_BASE_URL}
+      - PAYTR_TEST_MODE=${PAYTR_TEST_MODE}
+    depends_on:
+      - postgres
+    networks:
+      - elektraweb-network
+    volumes:
+      - ./services/payment-service:/app
+      - /app/node_modules
+
+networks:
+  elektraweb-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:

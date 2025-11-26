@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ElektraWEB Booking Widget - Demo</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f3f4f6;
+        }
+
+        .demo-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: #1f2937;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            margin-bottom: 32px;
+        }
+
+        pre {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+
+        code {
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="demo-container">
+        <h1>ElektraWEB Booking Widget</h1>
+        <p class="subtitle">Website'inize ekleyebileceğiniz rezervasyon widget'ı</p>
+
+        <!-- Widget Container -->
+        <div id="elektra-booking-widget" data-elektra-booking data-hotel-id="demo-hotel-123"
+            data-api-url="http://localhost:3000/api" data-primary-color="#3B82F6" data-language="tr"></div>
+    </div>
+
+    <div class="demo-container">
+        <h2>Kurulum</h2>
+        <p>Website'inize eklemek için aşağıdaki kodu kullanın:</p>
+
+        <h3>1. Script'i Ekleyin</h3>
+        <pre><code>&lt;script src="https://yourdomain.com/booking-widget.js"&gt;&lt;/script&gt;</code></pre>
+
+        <h3>2. Widget Container'ı Ekleyin</h3>
+        <pre><code>&lt;div 
+  id="elektra-booking-widget" 
+  data-elektra-booking
+  data-hotel-id="YOUR_HOTEL_ID"
+  data-api-url="https://api.yourdomain.com/api"
+  data-primary-color="#3B82F6"
+  data-language="tr"
+&gt;&lt;/div&gt;</code></pre>
+
+        <h3>3. Manuel Başlatma (Opsiyonel)</h3>
+        <pre><code>&lt;script&gt;
+  ElektraBooking.init({
+    elementId: 'elektra-booking-widget',
+    hotelId: 'YOUR_HOTEL_ID',
+    apiUrl: 'https://api.yourdomain.com/api',
+    primaryColor: '#3B82F6',
+    language: 'tr'
+  });
+&lt;/script&gt;</code></pre>
+    </div>
+
+    <!-- Widget Script -->
+    <script type="module" src="/src/widget.tsx"></script>
+</body>
+
+</html>
